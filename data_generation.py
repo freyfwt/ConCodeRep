@@ -7,7 +7,8 @@ def extract_fragment(file_path, method_name):
     if not os.path.exists(file_path):
         flag = False
         file_name = file_path.split('/')[-1]
-        for root, dirs, files in os.walk('/'.join(file_path.split('/')[:3])):
+        # You need to modify the search range if you do not use the default repos path.
+        for root, dirs, files in os.walk('/'.join(file_path.split('/')[:5])):
             if file_name in files:
                 file_path = root + '/' + file_name
                 flag = True
@@ -138,10 +139,12 @@ class Pipeline:
             print('\r', end='')
             print(f'{idx}/{length}', end='')
             sys.stdout.flush()
+        print()
         return self.dataset
 
     def extract_context(self):
         length = len(self.dataset)
+        new_ds = []
         for idx, sample in enumerate(self.dataset):
             sample_first = sample['first']
             sample_second = sample['second']
@@ -168,13 +171,18 @@ class Pipeline:
                 if context_code:
                     second_context_res.append((relation, node, context_code))
 
+            # We only need the data with at least one snippet of context code.
             if len(first_context_res) != 0 or len(second_context_res) != 0:
                 sample_first['context'] = first_context_res
                 sample_second['context'] = second_context_res
+                new_ds.append(sample)
 
             print('\r', end='')
             print(f'{idx + 1}/{length}', end='')
             sys.stdout.flush()
+
+        print()
+        self.dataset = new_ds
         return self.dataset
 
     def save(self):
@@ -196,6 +204,7 @@ class Pipeline:
 if __name__ == '__main__':
     SOURCE_DATA_PATH = './sesame/dataset.json'
     REPOS_DIR = './sesame/src/repos'
+    # REPOS_DIR = 'C:\\Database\\Documents\\Unimelb\\COMP90055Research\\repos'
     CALLGRAPH_DIR = './callgraphs'
     SAVE_DIR = './data'
 
