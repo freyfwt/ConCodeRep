@@ -1,10 +1,13 @@
 import javalang
 import json
+import os
 import pandas as pd
 
 
 class Pipeline:
-    def __init__(self, data_path, output_dir, ratio, random_seed, embedding_size):
+    def __init__(self, data_path, tree_file_path, output_dir, ratio, random_seed, embedding_size, tree_exists=False):
+        self.tree_exists = tree_exists
+        self.tree_file_path = tree_file_path
         self.data_path = data_path
         self.output_dir = output_dir
         self.ratio = ratio
@@ -18,6 +21,13 @@ class Pipeline:
         self.test_pairs = None
 
     def extract_code_tree(self):
+        if self.tree_exists:
+            if os.path.exists(self.tree_file_path):
+                self.tree_ds = pd.read_pickle(self.tree_file_path)
+                return self.tree_ds
+            else:
+                print('Warning: The path you specify to load tree dataset does not exist.')
+
         with open(self.data_path, 'r', encoding='utf-8') as input_file:
             self.dataset = json.load(input_file)
 
@@ -30,7 +40,7 @@ class Pipeline:
 
             try:
                 original_tree = parse_program(code_object['code'])
-            except Exception as e:
+            except Exception:
                 print(f"Warning: No. {code_object['dbid']} target cannot be parsed!")
                 return code_object['dbid'], None, None, None
             calling_trees = []
@@ -42,7 +52,7 @@ class Pipeline:
                         calling_trees.append(temp_tree)
                     elif tag == 1:
                         called_trees.append(temp_tree)
-                except Exception as e:
+                except Exception:
                     print(f'Warning: The context {method} cannot be parsed!')
             return code_object['dbid'], original_tree, calling_trees, called_trees
 
@@ -59,6 +69,11 @@ class Pipeline:
         new_df = pd.DataFrame(tree_array, columns=['id', 'code', 'calling', 'called'])
         new_df = new_df.loc[pd.notnull(new_df['code']), ['id', 'code', 'calling', 'called']]
         self.tree_ds = new_df
+
+        if not os.path.exists(os.path.dirname(self.tree_file_path)):
+            os.mkdir(os.path.dirname(self.tree_file_path))
+        self.tree_ds.to_pickle(self.tree_file_path)
+
         return self.tree_ds
 
     def extract_pair(self):
@@ -220,9 +235,10 @@ class Pipeline:
 
 if __name__ == '__main__':
     DATA_PATH = './data/context_dataset.json'
+    TREE_FILE_PATH = './data/trees.pkl'
     OUTPUT_DIR = './data/clone_detection'
     RATIO = '8:1:1'
     RANDOM_SEED = 2021
     EMBEDDING_SIZE = 128
-    ppl = Pipeline(DATA_PATH, OUTPUT_DIR, RATIO, RANDOM_SEED, EMBEDDING_SIZE)
+    ppl = Pipeline(DATA_PATH, TREE_FILE_PATH, OUTPUT_DIR, RATIO, RANDOM_SEED, EMBEDDING_SIZE, tree_exists=True)
     ppl.run()
