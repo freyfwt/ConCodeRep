@@ -1,5 +1,6 @@
 import javalang
 import json
+import numpy as np
 import os
 import pandas as pd
 
@@ -21,15 +22,15 @@ class Pipeline:
         self.test_trees = None
 
     def extract_code_tree(self):
+        with open(self.data_path, 'r', encoding='utf-8') as input_file:
+            self.dataset = json.load(input_file)
+
         if self.tree_exists:
             if os.path.exists(self.tree_file_path):
                 self.tree_ds = pd.read_pickle(self.tree_file_path)
                 return self.tree_ds
             else:
                 print('Warning: The path you specify to load tree dataset does not exist.')
-
-        with open(self.data_path, 'r', encoding='utf-8') as input_file:
-            self.dataset = json.load(input_file)
 
         def process_context_code(code_object):
             def parse_program(func):
@@ -195,15 +196,18 @@ class Pipeline:
         # You can uncomment the following statement to save the class label file.
         # class_data_df.to_csv('./data/classification/class_label.csv', index=False)
 
-        classes = class_data_df['label'].values.unique()
+        classes = np.unique(class_data_df['label'].values)
         classes = sorted(classes)
         classes_map = {name: i for i, name in enumerate(classes)}
         class_data_df['label'] = class_data_df['label'].apply(lambda x: classes_map[x])
         self.labels = class_data_df
 
-        train_df = pd.merge(self.train_trees, class_data_df, how='left', left_on='id', right_on='id')
-        dev_df = pd.merge(self.dev_trees, class_data_df, how='left', left_on='id', right_on='id')
-        test_df = pd.merge(self.test_trees, class_data_df, how='left', left_on='id', right_on='id')
+        train_df = pd.merge(self.train_trees[['id']], self.tree_ds, how='left', left_on='id', right_on='id')
+        dev_df = pd.merge(self.dev_trees[['id']], self.tree_ds, how='left', left_on='id', right_on='id')
+        test_df = pd.merge(self.test_trees[['id']], self.tree_ds, how='left', left_on='id', right_on='id')
+        train_df = pd.merge(train_df, class_data_df, how='left', left_on='id', right_on='id')
+        dev_df = pd.merge(dev_df, class_data_df, how='left', left_on='id', right_on='id')
+        test_df = pd.merge(test_df, class_data_df, how='left', left_on='id', right_on='id')
 
         train_df.to_pickle(self.output_dir + '/train_df.pkl')
         dev_df.to_pickle(self.output_dir + '/dev_df.pkl')

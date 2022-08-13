@@ -21,15 +21,15 @@ class Pipeline:
         self.test_pairs = None
 
     def extract_code_tree(self):
+        with open(self.data_path, 'r', encoding='utf-8') as input_file:
+            self.dataset = json.load(input_file)
+
         if self.tree_exists:
             if os.path.exists(self.tree_file_path):
                 self.tree_ds = pd.read_pickle(self.tree_file_path)
                 return self.tree_ds
             else:
                 print('Warning: The path you specify to load tree dataset does not exist.')
-
-        with open(self.data_path, 'r', encoding='utf-8') as input_file:
-            self.dataset = json.load(input_file)
 
         def process_context_code(code_object):
             def parse_program(func):
